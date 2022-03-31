@@ -24,6 +24,7 @@ import (
 
 	"github.com/GoogleContainerTools/skaffold/pkg/skaffold/config"
 	"github.com/GoogleContainerTools/skaffold/pkg/skaffold/deploy"
+	"github.com/GoogleContainerTools/skaffold/pkg/skaffold/deploy/cloudrun"
 	"github.com/GoogleContainerTools/skaffold/pkg/skaffold/deploy/docker"
 	"github.com/GoogleContainerTools/skaffold/pkg/skaffold/deploy/helm"
 	"github.com/GoogleContainerTools/skaffold/pkg/skaffold/deploy/kpt"
@@ -73,7 +74,7 @@ func GetDeployer(ctx context.Context, runCtx *runcontext.RunContext, labeller *l
 		nonHelmDeployFound := false
 
 		for _, d := range deployerCfg {
-			if d.DockerDeploy != nil || d.KptDeploy != nil || d.KubectlDeploy != nil || d.KustomizeDeploy != nil {
+			if d.DockerDeploy != nil || d.KptDeploy != nil || d.KubectlDeploy != nil || d.KustomizeDeploy != nil || d.CloudRunDeploy != nil {
 				nonHelmDeployFound = true
 			}
 
@@ -152,6 +153,13 @@ func GetDeployer(ctx context.Context, runCtx *runcontext.RunContext, labeller *l
 
 		if d.KustomizeDeploy != nil {
 			deployer, err := kustomize.NewDeployer(dCtx, labeller, d.KustomizeDeploy)
+			if err != nil {
+				return nil, err
+			}
+			deployers = append(deployers, deployer)
+		}
+		if d.CloudRunDeploy != nil {
+			deployer, err := cloudrun.NewDeployer(ctx, labeller, d.CloudRunDeploy)
 			if err != nil {
 				return nil, err
 			}

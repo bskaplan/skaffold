@@ -10,37 +10,49 @@ import (
 
 	"github.com/GoogleContainerTools/skaffold/pkg/skaffold/access"
 	"github.com/GoogleContainerTools/skaffold/pkg/skaffold/debug"
+	"github.com/GoogleContainerTools/skaffold/pkg/skaffold/deploy/label"
 	sErrors "github.com/GoogleContainerTools/skaffold/pkg/skaffold/errors"
 	"github.com/GoogleContainerTools/skaffold/pkg/skaffold/gcp"
 	"github.com/GoogleContainerTools/skaffold/pkg/skaffold/graph"
 	"github.com/GoogleContainerTools/skaffold/pkg/skaffold/log"
 	"github.com/GoogleContainerTools/skaffold/pkg/skaffold/output"
+	v1 "github.com/GoogleContainerTools/skaffold/pkg/skaffold/schema/latest/v1"
 	"github.com/GoogleContainerTools/skaffold/pkg/skaffold/status"
 	"github.com/GoogleContainerTools/skaffold/pkg/skaffold/sync"
-	"github.com/GoogleContainerTools/skaffold/pkg/skaffold/yaml"
 	"github.com/GoogleContainerTools/skaffold/proto/v1"
 	"google.golang.org/api/googleapi"
 	"google.golang.org/api/run/v1"
+
+	k8syaml "sigs.k8s.io/yaml"
 )
 
 type Deployer struct {
 	logger log.Logger
 
-	project string
-	region  string
-	service string
+	Project string
+	Region  string
+	Service string
 
-	serviceConfigFile string
+	ServiceConfigFile string
+}
+
+func NewDeployer(ctx context.Context, labeller *label.DefaultLabeller, crDeploy *v1.CloudRunDeploy) (*Deployer, error) {
+	return &Deployer{Project: crDeploy.ProjectID,
+		Service:           crDeploy.Service,
+		Region:            crDeploy.Region,
+		ServiceConfigFile: crDeploy.ConfigFile,
+		logger:            &log.NoopLogger{},
+	}, nil
 }
 
 // Do the deploy
-func (d *Deployer) Deploy(context.Context, io.Writer, []graph.Artifact) error {
-	return nil
+func (d *Deployer) Deploy(ctx context.Context, out io.Writer, artifacts []graph.Artifact) error {
+	return d.deployToCloudRun(ctx, out, artifacts)
 }
 
 // Files that would trigger a redeploy
 func (d *Deployer) Dependencies() ([]string, error) {
-	return []string{"service.yaml"}, nil
+	return []string{d.ServiceConfigFile}, nil
 }
 
 // Delete the created dev service
@@ -79,10 +91,10 @@ func (d *Deployer) RegisterLocalImages([]graph.Artifact) {
 }
 
 func (d *Deployer) GetStatusMonitor() status.Monitor {
-	return nil
+	return &status.NoopMonitor{}
 }
 
-func (d *Deployer) deployToCloudRun(ctx context.Context, artifacts []graph.Artifact) error {
+func (d *Deployer) deployToCloudRun(ctx context.Context, out io.Writer, artifacts []graph.Artifact) error {
 	if len(artifacts) > 1 {
 		return sErrors.NewError(fmt.Errorf("Too many artifacts"), &proto.ActionableErr{
 			Message: "Cloud Run only supports a single image",
@@ -104,7 +116,7 @@ func (d *Deployer) deployToCloudRun(ctx context.Context, artifacts []graph.Artif
 			ErrCode: proto.StatusCode_DEPLOY_GET_CLOUD_RUN_CLIENT_ERR,
 		})
 	}
-	dat, err := os.ReadFile(d.serviceConfigFile)
+	dat, err := os.ReadFile(d.ServiceConfigFile)
 	if err != nil {
 		return sErrors.NewError(fmt.Errorf("Unable to read Cloud Run Config"), &proto.ActionableErr{
 			Message: err.Error(),
@@ -112,18 +124,20 @@ func (d *Deployer) deployToCloudRun(ctx context.Context, artifacts []graph.Artif
 		})
 	}
 	service := &run.Service{}
-	if err = yaml.Unmarshal(dat, service); err != nil {
+	if err = k8syaml.Unmarshal(dat, service); err != nil {
 		return sErrors.NewError(fmt.Errorf("Unable to unmarshal Cloud Run Service config"), &proto.ActionableErr{
 			Message: err.Error(),
 			ErrCode: proto.StatusCode_DEPLOY_READ_MANIFEST_ERR,
 		})
 	}
-	service.Metadata.Name = d.service
-	service.Metadata.Namespace = d.project
+	service.Metadata.Name = d.Service
+	service.Metadata.Namespace = d.Project
 	service.Spec.Template.Spec.Containers[0].Image = artifact.ImageName
-	parent := fmt.Sprintf("projects/%s/locations/%s", d.project, d.region)
+	serviceJson, err := service.MarshalJSON()
+	output.Blue.Fprintf(out, "Deploying Cloud Run service:\n %v", string(serviceJson))
+	parent := fmt.Sprintf("projects/%s/locations/%s", d.Project, d.Region)
 
-	sName := fmt.Sprintf("%s/services/%s", parent, d.service)
+	sName := fmt.Sprintf("%s/services/%s", parent, d.Service)
 	getCall := crclient.Projects.Locations.Services.Get(sName)
 	_, err = getCall.Do()
 
@@ -154,8 +168,8 @@ func (d *Deployer) deployToCloudRun(ctx context.Context, artifacts []graph.Artif
 
 func (d *Deployer) deleteRunService(ctx context.Context, out io.Writer, dryRun bool) error {
 
-	parent := fmt.Sprintf("projects/%s/locations/%s", d.project, d.region)
-	sName := fmt.Sprintf("%s/services/%s", parent, d.service)
+	parent := fmt.Sprintf("projects/%s/locations/%s", d.Project, d.Region)
+	sName := fmt.Sprintf("%s/services/%s", parent, d.Service)
 	if dryRun {
 		output.Yellow.Fprintln(out, sName)
 		return nil
