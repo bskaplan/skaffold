@@ -1037,6 +1037,10 @@ For Cancelled Error code, use range 800 to 850.<br>
 | DEPLOY_HELM_CREATE_NS_NOT_AVAILABLE | 1022 | Helm config `createNamespace` not available |
 | DEPLOY_CLUSTER_INTERNAL_SYSTEM_ERR | 1023 | Kubernetes cluster reported an internal system error |
 | DEPLOY_KPTFILE_INIT_ERR | 1024 | The Kptfile cannot be created via `kpt live init`. |
+| DEPLOY_GET_CLOUD_RUN_CLIENT_ERR | 1025 | The Cloud Run Client could not be created |
+| DEPLOY_CLOUD_RUN_GET_SERVICE_ERR | 1026 |  |
+| DEPLOY_CLOUD_RUN_UPDATE_SERVICE_ERR | 1027 |  |
+| DEPLOY_CLOUD_RUN_DELETE_SERVICE_ERR | 1028 | Test errors |
 | TEST_USER_CONFIG_ERR | 1101 | Error expanding paths |
 | TEST_CST_USER_ERR | 1102 | Error running container-structure-test |
 | TEST_IMG_PULL_ERR | 1103 | Unable to docker pull image |

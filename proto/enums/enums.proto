@@ -442,6 +442,11 @@ enum StatusCode {
     // The Kptfile cannot be created via `kpt live init`.
     DEPLOY_KPTFILE_INIT_ERR = 1024;
 
+    // The Cloud Run Client could not be created
+    DEPLOY_GET_CLOUD_RUN_CLIENT_ERR = 1025;
+    DEPLOY_CLOUD_RUN_GET_SERVICE_ERR = 1026;
+    DEPLOY_CLOUD_RUN_UPDATE_SERVICE_ERR = 1027;
+    DEPLOY_CLOUD_RUN_DELETE_SERVICE_ERR = 1028;
     // Test errors
 
     // Error expanding paths
