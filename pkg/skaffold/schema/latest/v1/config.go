@@ -25,8 +25,8 @@ import (
 	"github.com/GoogleContainerTools/skaffold/pkg/skaffold/schema/util"
 )
 
-// !!! WARNING !!! This config version is already released, please DO NOT MODIFY the structs in this file.
-const Version string = "skaffold/v2beta28"
+// This config version is not yet released, it is SAFE TO MODIFY the structs in this file.
+const Version string = "skaffold/v2beta29"
 
 // NewSkaffoldConfig creates a SkaffoldConfig
 func NewSkaffoldConfig() util.VersionedConfig {
@@ -558,6 +558,9 @@ type DeployType struct {
 
 	// KustomizeDeploy *beta* uses the `kustomize` CLI to "patch" a deployment for a target environment.
 	KustomizeDeploy *KustomizeDeploy `yaml:"kustomize,omitempty"`
+
+	// CloudRunDeploy *alpha* uses the Cloud Run API to create applications in Google Cloud Run.
+	CloudRunDeploy *CloudRunDeploy `yaml:"cloudrun,omitempty"`
 }
 
 // DockerDeploy uses the `docker` CLI to create application containers in Docker.
@@ -908,6 +911,22 @@ type Artifact struct {
 	// Each platform is of the format `os[/arch[/variant]]`, e.g., `linux/amd64`.
 	// Example: `["linux/amd64", "linux/arm64"]`.
 	Platforms []string `yaml:"platforms,omitempty"`
+}
+
+// CloudRunDeploy *alpha* deploys the container to Google Cloud Run.
+type CloudRunDeploy struct {
+	// ProjectID of the GCP Project to use for Cloud Run.
+	ProjectID string `yaml:"projectid,omitempty"`
+
+	// Region in GCP to use for the Cloud Run Deploy.
+	// Must be one of the regions listed in https://cloud.google.com/run/docs/locations.
+	Region string `yaml:"region,omitempty"`
+
+	// Service is the name of the Cloud Run Service to use.
+	Service string `yaml:"service,omitempty"`
+
+	// ConfigFile is the Cloud Run Service Yaml.
+	ConfigFile string `yaml:"config,omitempty"`
 }
 
 // Sync *beta* specifies what files to sync into the container.
